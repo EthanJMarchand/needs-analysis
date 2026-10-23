@@ -64,7 +64,9 @@ function takeTaxable({ balance, acb, kind, need, base, factor, province }) {
   };
 }
 
-// CPP counts from retirement. OAS counts from 65. Both rise with inflation.
+// Each person's CPP counts from the later of retirement and age 60.
+// OAS counts from that person's age 65. Amounts are today's dollars;
+// the caller raises them with inflation.
 // The recovery screen uses today's OAS threshold against today's pension income.
 function pensionCash({
   retired,
@@ -79,14 +81,14 @@ function pensionCash({
   rate,
 }) {
   if (!retired) return 0;
-  const cpp = Math.max(0, clientCpp);
+  const cpp = age >= 60 ? Math.max(0, clientCpp) : 0;
   let oas = age >= 65 ? Math.max(0, clientOas) : 0;
   const proxy = Math.max(0, otherIncome) + cpp + oas;
   if (threshold > 0 && proxy > threshold) {
     oas -= Math.min(oas, rate * (proxy - threshold));
   }
-  const spouseCpp = Math.max(0, partnerCpp);
-  const spouseOas = partnerAge == null || partnerAge >= 65 ? Math.max(0, partnerOas) : 0;
+  const spouseCpp = partnerAge != null && partnerAge >= 60 ? Math.max(0, partnerCpp) : 0;
+  const spouseOas = partnerAge != null && partnerAge >= 65 ? Math.max(0, partnerOas) : 0;
   return cpp + oas + spouseCpp + spouseOas;
 }
 
@@ -233,14 +235,63 @@ export function projectPortfolio({
     });
   }
 
+  const savingRows = rows.filter((row) => !row.retired);
+  const firstDeposit = savingRows[0];
+  const wantedTfsa = Math.max(0, tfsaAnnual);
+  const wantedRrsp = Math.max(0, rrspAnnual);
   return {
     rows,
     depletedAge,
     ending: rows.length ? rows[rows.length - 1].total : 0,
+    deposits: {
+      tfsa: firstDeposit ? firstDeposit.tfsaIn : 0,
+      rrsp: firstDeposit ? firstDeposit.rrspIn : 0,
+      nonReg: firstDeposit ? firstDeposit.nonRegIn : 0,
+      tfsaLimited: savingRows.some((row) => row.tfsaIn + 0.5 < wantedTfsa),
+      rrspLimited: savingRows.some((row) => row.rrspIn + 0.5 < wantedRrsp),
+    },
     monthly: {
       tfsa: Math.max(0, tfsaAnnual) / 12,
       rrsp: Math.max(0, rrspAnnual) / 12,
       nonReg: Math.max(0, nonRegAnnual) / 12,
     },
   };
+}
+
+function timingFor(saving, field) {
+  const thisYear = saving[0]?.[field] || 0;
+  const index = saving.findIndex((row, i) => i > 0 && Math.abs((row[field] || 0) - thisYear) > 0.5);
+  if (index < 0) {
+    return { thisYear, later: thisYear, laterOffset: 0, calendarYear: saving[0]?.calendarYear ?? null };
+  }
+  return {
+    thisYear,
+    later: saving[index][field] || 0,
+    laterOffset: index,
+    calendarYear: saving[index].calendarYear,
+  };
+}
+
+// This year's deposit can be zero when the room is already used. The next
+// change in the schedule is the amount to show, with the year it starts.
+export function describeDeposits(rows) {
+  const saving = (rows || []).filter((row) => !row.retired);
+  const accounts = {
+    tfsa: timingFor(saving, "tfsaIn"),
+    rrsp: timingFor(saving, "rrspIn"),
+    nonReg: timingFor(saving, "nonRegIn"),
+  };
+  const now = saving[0] ? saving[0].tfsaIn + saving[0].rrspIn + saving[0].nonRegIn : 0;
+  let offset = 0;
+  let annual = now;
+  let calendarYear = saving[0]?.calendarYear ?? null;
+  if (now <= 0.5) {
+    const index = saving.findIndex((row, i) => i > 0 && row.tfsaIn + row.rrspIn + row.nonRegIn > 0.5);
+    if (index > 0) {
+      offset = index;
+      annual = saving[index].tfsaIn + saving[index].rrspIn + saving[index].nonRegIn;
+      calendarYear = saving[index].calendarYear;
+    }
+  }
+  return { accounts, headline: { annual, offset, calendarYear } };
 }

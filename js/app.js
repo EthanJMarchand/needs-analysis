@@ -13,11 +13,11 @@ import { deflate, inflate, purchasingPowerPath, roundPercent, trailingAverage } 
 import { calculateLifeNeed } from "./calc/life-need.js";
 import { formatDollars, formatMoney, futureValue, readMoney } from "./calc/money.js";
 import { incomeYearsAtAge, projectLifeNeed } from "./calc/need-path.js";
-import { estimateCpp, estimateOas, residenceYearsFromAge } from "./calc/pensions.js";
+import { cppContributionYears, estimateCpp, estimateOas, residenceYearsFromAge } from "./calc/pensions.js";
 import { calculateProbate } from "./calc/probate.js";
 import { criticalIllnessLumpSum, disabilityMonthlyBenefit } from "./calc/protection.js";
 import { calculateRetirement, taxableRetirementIncome } from "./calc/retirement.js";
-import { projectPortfolio } from "./calc/portfolio-path.js";
+import { describeDeposits, projectPortfolio } from "./calc/portfolio-path.js";
 import { balanceAfterWithdrawals, balanceAtAge, wealthPath } from "./calc/wealth-path.js";
 import { latestTaxYear, marginalRate, taxOnInclusion } from "./calc/tax.js";
 import { formatYearSpan, groupLimitYears, tfsaRoomEarned } from "./calc/tfsa-room.js";
@@ -43,6 +43,13 @@ const dirty = {
   earlyDeath: false,
   disabilityMonths: false,
   allocation: false,
+  recommendedLife: false,
+  recommendedDisability: false,
+  recommendedCritical: false,
+  recommendedPartnerLife: false,
+  recommendedPartnerDisability: false,
+  recommendedPartnerCritical: false,
+  rationale: false,
 };
 
 const inflationHistory = trailingAverage(canadaInflation.annualPercent, 100);
@@ -184,8 +191,24 @@ function applyNames() {
   $("partner-heading-retirement").textContent = partner;
   $("person-heading-accounts").textContent = `${person} accounts`;
   $("partner-heading-accounts").textContent = `${partner} accounts`;
+  $("recommended-person-heading").textContent = person;
+  $("recommended-partner-heading").textContent = partner;
   $("recommended-life-label").textContent = `Life amount you will recommend for ${person}`;
+  $("recommended-disability-label").textContent = `Disability benefit you will recommend for ${person}, monthly`;
+  $("recommended-critical-label").textContent = `Critical illness amount you will recommend for ${person}`;
   $("recommended-partner-life-label").textContent = `Life amount you will recommend for ${partner}`;
+  $("recommended-partner-disability-label").textContent = `Disability benefit you will recommend for ${partner}, monthly`;
+  $("recommended-partner-critical-label").textContent = `Critical illness amount you will recommend for ${partner}`;
+  $("chosen-person-heading").textContent = person;
+  $("chosen-partner-heading").textContent = partner;
+  $("chosen-life-label").textContent = `Life insurance ${person} chose`;
+  $("chosen-disability-label").textContent = `Disability benefit ${person} chose, monthly`;
+  $("chosen-critical-label").textContent = `Critical illness ${person} chose`;
+  $("chosen-reason-label").textContent = `Why ${person}'s choice matches or differs from the recommendation`;
+  $("chosen-partner-life-label").textContent = `Life insurance ${partner} chose`;
+  $("chosen-partner-disability-label").textContent = `Disability benefit ${partner} chose, monthly`;
+  $("chosen-partner-critical-label").textContent = `Critical illness ${partner} chose`;
+  $("chosen-partner-reason-label").textContent = `Why ${partner}'s choice matches or differs from the recommendation`;
   $("mobile-life-label").textContent = `${person} life capital`;
   $("meeting-person-life-label").textContent = `${person}, life capital`;
   $("meeting-person-di-label").textContent = `${person}, disability, monthly`;
@@ -335,7 +358,12 @@ function applySuggestions() {
     $("canada-years").value = String(residenceYearsFromAge(currentAge));
   }
   if (!dirty.cpp) {
-    $("cpp-annual").value = moneyInput(estimateCpp(earningsForCpp("income-history", "personal-income"), cppAmounts.ympe, maxAnnualCpp()));
+    $("cpp-annual").value = moneyInput(estimateCpp(
+      earningsForCpp("income-history", "personal-income"),
+      cppAmounts.ympe,
+      maxAnnualCpp(),
+      cppContributionYears(currentAge),
+    ));
   }
   if (!dirty.oas) {
     const retireAt = retirementAge ?? 65;
@@ -347,7 +375,12 @@ function applySuggestions() {
       $("partner-canada-years").value = String(residenceYearsFromAge(partnerAge));
     }
     if (!dirty.partnerCpp) {
-      $("partner-cpp").value = moneyInput(estimateCpp(earningsForCpp("partner-income-history", "partner-income"), cppAmounts.ympe, maxAnnualCpp()));
+      $("partner-cpp").value = moneyInput(estimateCpp(
+        earningsForCpp("partner-income-history", "partner-income"),
+        cppAmounts.ympe,
+        maxAnnualCpp(),
+        cppContributionYears(partnerAge),
+      ));
     }
     if (!dirty.partnerOas) {
       $("partner-oas").value = moneyInput(estimateOas(readMoney($("partner-canada-years").value), maxAnnualOas(65)));
@@ -546,16 +579,44 @@ function planSpanYears() {
   return span;
 }
 
-function monthlyContributions() {
-  return readMoney($("tfsa-contribution").value) + readMoney($("rrsp-contribution").value) + readMoney($("nonreg-contribution").value);
+function contributionPhrase(timing) {
+  if (!timing || (timing.thisYear <= 0.5 && timing.later <= 0.5)) return "";
+  const month = (annual) => formatMoney(annual / 12);
+  if (timing.laterOffset === 0) return `${month(timing.thisYear)} a month`;
+  if (timing.thisYear <= 0.5) {
+    const when = timing.laterOffset === 1 ? "beginning next year" : `beginning in ${timing.calendarYear}`;
+    return `${month(timing.later)} a month, ${when}`;
+  }
+  const when = timing.laterOffset === 1 ? "next year" : String(timing.calendarYear);
+  return `${month(timing.thisYear)} a month this year, then ${month(timing.later)} ${when}`;
 }
 
-function plannedSavings(model) {
-  if (model?.portfolio) {
-    const month = model.portfolio.monthly;
-    return (month.tfsa + month.rrsp + month.nonReg) * 12;
-  }
-  return monthlyContributions() * 12;
+function contributionSchedule(model) {
+  if (!model?.portfolio) return [];
+  const described = describeDeposits(model.portfolio.rows);
+  return [
+    ["TFSA", described.accounts.tfsa],
+    ["RRSP", described.accounts.rrsp],
+    ["Non-registered", described.accounts.nonReg],
+  ].flatMap(([label, timing]) => {
+    const phrase = contributionPhrase(timing);
+    return phrase ? [[label, phrase]] : [];
+  });
+}
+
+function contributionSentence(model) {
+  const lines = contributionSchedule(model);
+  if (!lines.length) return "";
+  return `${lines.map(([label, phrase]) => `${label} ${phrase}`).join(". ")}.`;
+}
+
+function contributionHeadline(model) {
+  const described = describeDeposits(model.portfolio.rows);
+  const { annual, offset, calendarYear } = described.headline;
+  let label = "Monthly contributions";
+  if (offset === 1) label = "Monthly contributions, beginning next year";
+  else if (offset > 1) label = `Monthly contributions, beginning in ${calendarYear}`;
+  return { label, monthly: annual / 12 };
 }
 
 function rolloverChosen() {
@@ -982,6 +1043,45 @@ function guaranteedInsurabilitySentence() {
   return `A home purchase is in the plan.${mortgage} A guaranteed insurability rider is recommended for ${lives} so the coverage can be increased when the mortgage begins.`;
 }
 
+function draftAmount(id, amount, flag) {
+  if (dirty[flag]) return;
+  $(id).value = String(Math.max(0, Math.round(amount || 0)));
+}
+
+function rationaleDraft(model) {
+  const life = model.life;
+  const protection = model.protection;
+  const ratio = formatPercent(rateFrom("replacement-ratio"));
+  const months = Math.round(protection.disabilityMonths);
+  const ciMonths = Math.round(protection.ciMonths);
+  const ciRatio = formatPercent(protection.ciRatio);
+  const sentences = [
+    `${personName()}'s life insurance recommendation of ${formatDollars(life.capitalNeed)} replaces ${ratio} of income for ${life.years} years (${formatDollars(life.incomeCapital)}), and includes debts of ${formatDollars(life.debts)} and education of ${formatDollars(life.educationCapital)}. Final expenses, probate, and tax at death stay in the need. Existing coverage of ${formatDollars(life.existingLifeInsurance)} and assets of ${formatDollars(life.assetsAtDeath)} are already subtracted.`,
+    `The disability recommendation is ${formatDollars(protection.clientDisability)} a month for ${months} months, which is ${ratio} of earned income.`,
+    `The critical illness recommendation is ${formatDollars(protection.clientCritical)}, ${ciRatio} of earned income for ${ciMonths} months, as one lump sum. Income from investments is not included.`,
+  ];
+  if (model.spouseLife) {
+    const spouse = model.spouseLife;
+    sentences.push(`${partnerName()}'s life insurance recommendation of ${formatDollars(spouse.capitalNeed)} uses the same debts and education, with ${ratio} of ${partnerName()}'s income for ${spouse.years} years. Existing coverage of ${formatDollars(spouse.existingLifeInsurance)} is subtracted from ${partnerName()}'s need only. ${partnerName()}'s disability recommendation is ${formatDollars(protection.spouseDisability)} a month for the same ${months} months, and the critical illness recommendation is ${formatDollars(protection.spouseCritical)} for the same ${ciMonths} months of earned income.`);
+  }
+  const rider = guaranteedInsurabilitySentence();
+  if (rider) sentences.push(rider);
+  return sentences.join(" ");
+}
+
+function draftRecommendations(model) {
+  const protection = model.protection;
+  draftAmount("recommended-life", model.life.capitalNeed, "recommendedLife");
+  draftAmount("recommended-disability", protection.clientDisability, "recommendedDisability");
+  draftAmount("recommended-critical", protection.clientCritical, "recommendedCritical");
+  if (model.spouseLife) {
+    draftAmount("recommended-partner-life", model.spouseLife.capitalNeed, "recommendedPartnerLife");
+    draftAmount("recommended-partner-disability", protection.spouseDisability, "recommendedPartnerDisability");
+    draftAmount("recommended-partner-critical", protection.spouseCritical, "recommendedPartnerCritical");
+  }
+  if (!dirty.rationale) $("rationale").value = rationaleDraft(model);
+}
+
 function lifeNarrative(model) {
   const life = model.life;
   const ratio = formatPercent(rateFrom("replacement-ratio"));
@@ -1019,7 +1119,6 @@ function legacyGap(model) {
 function retirementNarrative(model) {
   const path = model.portfolio;
   if (!path) return "Enter an age and a likely age at death after it to draw the balances.";
-  const month = path.monthly;
   const end = path.rows[path.rows.length - 1];
   const ranOut = path.depletedAge != null
     ? `The balances reach $0 at age ${Math.round(path.depletedAge)}.`
@@ -1032,7 +1131,8 @@ function retirementNarrative(model) {
   const pensionLine = retireRow
     ? ` At retirement, CPP and OAS provide ${formatDollars(retireRow.pension)} and the accounts withdraw ${formatDollars(retireRow.withdrawal)} after tax.`
     : "";
-  return `${incomeTranslation(model.target)} Monthly contributions are TFSA ${formatDollars(month.tfsa)}, RRSP ${formatDollars(month.rrsp)}, and non-registered ${formatDollars(month.nonReg)}. CPP and OAS cover part of the after-tax income. The accounts withdraw what remains, raised with inflation, from the RRSP, then non-registered, then the TFSA, then other assets.${pensionLine} ${ranOut}${legacy}`;
+  const schedule = contributionSentence(model);
+  return `${incomeTranslation(model.target)}${schedule ? ` ${schedule}` : ""} CPP and OAS cover part of the after-tax income. The accounts withdraw what remains, raised with inflation, from the RRSP, then non-registered, then the TFSA, then other assets.${pensionLine} ${ranOut}${legacy}`;
 }
 
 function incomeTranslation(target) {
@@ -1103,19 +1203,133 @@ function deathTaxSentence(model) {
   return parts.join(" ");
 }
 
-function protectionSentence(model) {
+function recordedOrNull(id) {
+  return blank(id) ? null : readMoney($(id).value);
+}
+
+function recordedDollars(id, suffix = "") {
+  const amount = recordedOrNull(id);
+  if (amount == null) return "Not recorded yet";
+  return `${formatDollars(amount)}${suffix}`;
+}
+
+function coverageAdvice(name, kind, recordedId, calculated, advisedSuffix = "") {
+  const recorded = recordedOrNull(recordedId);
+  const advised = recorded == null
+    ? "A different amount has not been recorded."
+    : `I advised ${formatDollars(recorded)}${advisedSuffix}.`;
+  return `${name}, ${kind}. ${advised} ${calculated}`;
+}
+
+function protectionLines(model) {
   const protection = model.protection;
+  const months = Math.round(protection.disabilityMonths);
+  const ciMonths = Math.round(protection.ciMonths);
   const lines = [
-    `${personName()}: life insurance ${formatDollars(model.life.capitalNeed)}. Disability ${formatDollars(protection.clientDisability)} a month for ${Math.round(protection.disabilityMonths)} months. Critical illness ${formatDollars(protection.clientCritical)}, ${formatPercent(protection.ciRatio)} of earned income for ${Math.round(protection.ciMonths)} months.`,
+    `${personName()}, life insurance. The calculated need is ${formatDollars(model.life.capitalNeed)}.`,
+    `${personName()}, disability. The calculated benefit is ${formatDollars(protection.clientDisability)} a month for ${months} months.`,
+    `${personName()}, critical illness. The calculated lump sum is ${formatDollars(protection.clientCritical)}, ${formatPercent(protection.ciRatio)} of earned income for ${ciMonths} months.`,
   ];
   if (model.spouseLife) {
-    lines.push(`${partnerName()}: life insurance ${formatDollars(model.spouseLife.capitalNeed)}. Disability ${formatDollars(protection.spouseDisability)} a month. Critical illness ${formatDollars(protection.spouseCritical)} for the same months of earned income.`);
+    lines.push(
+      `${partnerName()}, life insurance. The calculated need is ${formatDollars(model.spouseLife.capitalNeed)}.`,
+      `${partnerName()}, disability. The calculated benefit is ${formatDollars(protection.spouseDisability)} a month for ${months} months.`,
+      `${partnerName()}, critical illness. The calculated lump sum is ${formatDollars(protection.spouseCritical)}, ${formatPercent(protection.ciRatio)} of earned income for ${ciMonths} months.`,
+    );
   }
   for (const child of childLabels()) {
-    lines.push(`${child}: life insurance ${formatDollars(protection.childLifeEach)}. Critical illness ${formatDollars(protection.childCiEach)}.`);
+    lines.push(`${child}, life insurance. ${formatDollars(protection.childLifeEach)}.`);
+    lines.push(`${child}, critical illness. ${formatDollars(protection.childCiEach)}.`);
   }
   lines.push("These are separate amounts. Choosing a policy, including term or permanent coverage, is separate from this letter. Income from investments is not included in the critical illness amount.");
-  return lines.join(" ");
+  return lines;
+}
+
+function adviceLines(model) {
+  const protection = model.protection;
+  const months = Math.round(protection.disabilityMonths);
+  const lines = [
+    coverageAdvice(personName(), "life insurance", "recommended-life", `The calculated need is ${formatDollars(model.life.capitalNeed)}.`),
+    coverageAdvice(personName(), "disability", "recommended-disability", `The calculated benefit is ${formatDollars(protection.clientDisability)} a month for ${months} months.`, " a month"),
+    coverageAdvice(personName(), "critical illness", "recommended-critical", `The calculated lump sum is ${formatDollars(protection.clientCritical)}.`),
+  ];
+  if (model.spouseLife) {
+    lines.push(
+      coverageAdvice(partnerName(), "life insurance", "recommended-partner-life", `The calculated need is ${formatDollars(model.spouseLife.capitalNeed)}.`),
+      coverageAdvice(partnerName(), "disability", "recommended-partner-disability", `The calculated benefit is ${formatDollars(protection.spouseDisability)} a month for ${months} months.`, " a month"),
+      coverageAdvice(partnerName(), "critical illness", "recommended-partner-critical", `The calculated lump sum is ${formatDollars(protection.spouseCritical)}.`),
+    );
+  }
+  for (const child of childLabels()) {
+    lines.push(`${child}, life insurance. ${formatDollars(protection.childLifeEach)}.`);
+    lines.push(`${child}, critical illness. ${formatDollars(protection.childCiEach)}.`);
+  }
+  return lines;
+}
+
+function choiceGap(chosenId, recommendedId, suffix = "") {
+  const chosen = recordedOrNull(chosenId);
+  const recommended = recordedOrNull(recommendedId);
+  if (chosen == null) return { text: "The client's choice has not been recorded.", value: "Not recorded yet" };
+  const amount = `${formatDollars(chosen)}${suffix}`;
+  if (recommended == null) {
+    return { text: `The client chose ${amount}. A recommendation has not been recorded.`, value: amount };
+  }
+  const gap = Math.round(chosen) - Math.round(recommended);
+  if (gap === 0) {
+    return { text: `The client chose ${amount}. This matches the recommendation.`, value: `${amount}. Matches the recommendation.` };
+  }
+  const direction = gap < 0 ? "less" : "more";
+  const difference = `${formatDollars(Math.abs(gap))}${suffix} ${direction} than the recommendation of ${formatDollars(recommended)}${suffix}`;
+  return {
+    text: `The client chose ${amount}. This is ${difference}.`,
+    value: `${amount}. ${formatDollars(Math.abs(gap))}${suffix} ${direction}.`,
+  };
+}
+
+function clientChoiceLines() {
+  const rows = [
+    [personName(), "life insurance", "chosen-life", "recommended-life", ""],
+    [personName(), "disability", "chosen-disability", "recommended-disability", " a month"],
+    [personName(), "critical illness", "chosen-critical", "recommended-critical", ""],
+  ];
+  if (hasPartner()) {
+    rows.push(
+      [partnerName(), "life insurance", "chosen-partner-life", "recommended-partner-life", ""],
+      [partnerName(), "disability", "chosen-partner-disability", "recommended-partner-disability", " a month"],
+      [partnerName(), "critical illness", "chosen-partner-critical", "recommended-partner-critical", ""],
+    );
+  }
+  const lines = rows.map(([name, kind, chosenId, recommendedId, suffix]) => {
+    return `${name}, ${kind}. ${choiceGap(chosenId, recommendedId, suffix).text}`;
+  });
+  const reason = $("chosen-reason").value.trim();
+  lines.push(reason
+    ? `${personName()}. ${reason}`
+    : `${personName()}. The reason this choice matches or differs from the recommendation has not been written yet.`);
+  if (hasPartner()) {
+    const partnerReason = $("chosen-partner-reason").value.trim();
+    lines.push(partnerReason
+      ? `${partnerName()}. ${partnerReason}`
+      : `${partnerName()}. The reason this choice matches or differs from the recommendation has not been written yet.`);
+  }
+  return lines;
+}
+
+function clientChoicePairs() {
+  const pairs = [
+    [`${personName()} life insurance chosen`, choiceGap("chosen-life", "recommended-life").value],
+    [`${personName()} disability chosen`, choiceGap("chosen-disability", "recommended-disability", " a month").value],
+    [`${personName()} critical illness chosen`, choiceGap("chosen-critical", "recommended-critical").value],
+  ];
+  if (hasPartner()) {
+    pairs.push(
+      [`${partnerName()} life insurance chosen`, choiceGap("chosen-partner-life", "recommended-partner-life").value],
+      [`${partnerName()} disability chosen`, choiceGap("chosen-partner-disability", "recommended-partner-disability", " a month").value],
+      [`${partnerName()} critical illness chosen`, choiceGap("chosen-partner-critical", "recommended-partner-critical").value],
+    );
+  }
+  return pairs;
 }
 
 function scenarioSentence() {
@@ -1151,13 +1365,11 @@ function depositSentence(year) {
 function allocationSentence(model) {
   const path = model.portfolio;
   if (!path) return "Enter an age and a likely age at death to list the yearly deposits.";
-  const first = path.rows.find((row) => !row.retired) || path.rows[0];
   const retire = path.rows.find((row) => row.retired);
-  let text = `This year's deposits are TFSA ${formatDollars(first.tfsaIn)}, RRSP ${formatDollars(first.rrspIn)}, and non-registered ${formatDollars(first.nonRegIn)}. TFSA and RRSP deposits stay within the room still available. The slider is the most that would be contributed.`;
-  if (retire) {
-    text += ` At retirement the balances are TFSA ${formatDollars(retire.tfsa)}, RRSP ${formatDollars(retire.rrsp)}, non-registered ${formatDollars(retire.nonReg)}, and other assets ${formatDollars(retire.other)}.`;
-  }
-  text += " Withdrawals start at retirement. CPP and OAS cover part of the after-tax income, and the accounts withdraw the rest. RRSP withdrawals are taxed in full. Non-registered withdrawals are taxed on the gain, with the cost of the balance already owned counted as zero. Only the growth on other assets is taxed. A TFSA withdrawal is not taxed.";
+  let text = retire
+    ? `At retirement the balances are TFSA ${formatDollars(retire.tfsa)}, RRSP ${formatDollars(retire.rrsp)}, non-registered ${formatDollars(retire.nonReg)}, and other assets ${formatDollars(retire.other)}. `
+    : "";
+  text += "Withdrawals start at retirement. CPP and OAS cover part of the after-tax income, and the accounts withdraw the rest. RRSP withdrawals are taxed in full. Non-registered withdrawals are taxed on the gain, with the cost of the balance already owned counted as zero. Only the growth on other assets is taxed. A TFSA withdrawal is not taxed.";
   return text;
 }
 
@@ -1218,29 +1430,12 @@ function reportLogo() {
 function clientLetterLines(model) {
   const name = personName();
   const advisor = $("advisor-name").value.trim() || DEFAULT_ADVISOR.name;
-  const recommendedBlank = blank("recommended-life");
-  const recommended = readMoney($("recommended-life").value);
-  const partnerRecommendedBlank = blank("recommended-partner-life");
   const needs = checkedNeeds();
-  const monthly = model.portfolio
-    ? `Monthly contributions are ${formatDollars(plannedSavings(model) / 12)}.`
-    : "";
+  const monthly = "";
   const children = childLabels();
-  const advice = [
-    recommendedBlank
-      ? `${name}: the calculated life insurance need is ${formatDollars(model.life.capitalNeed)}. A different amount has not been recorded.`
-      : `${name}: I advised life insurance capital of ${formatDollars(recommended)}. The calculated need is ${formatDollars(model.life.capitalNeed)}.`,
-  ];
-  if (model.spouseLife) {
-    advice.push(partnerRecommendedBlank
-      ? `${partnerName()}: the calculated life insurance need is ${formatDollars(model.spouseLife.capitalNeed)}. A different amount has not been recorded.`
-      : `${partnerName()}: I advised life insurance capital of ${formatDollars(readMoney($("recommended-partner-life").value))}. The calculated need is ${formatDollars(model.spouseLife.capitalNeed)}.`);
-  }
-  for (const child of children) {
-    advice.push(`${child}: life insurance ${formatDollars(model.protection.childLifeEach)}, critical illness ${formatDollars(model.protection.childCiEach)}.`);
-  }
+  const advice = adviceLines(model);
   return [
-    "Reason why letter",
+    "Reason Why Letter",
     $("meeting-date").value || "Date not set",
     "",
     `Dear ${name},`,
@@ -1262,7 +1457,7 @@ function clientLetterLines(model) {
       lifeNarrative(model),
       longevitySentence(model),
       deathTaxSentence(model),
-      protectionSentence(model),
+      ...protectionLines(model),
     ] : []),
     ...(showsPlanning() ? [
       "",
@@ -1280,6 +1475,9 @@ function clientLetterLines(model) {
     needs.length ? `Needs we assessed: ${needs.join(", ")}.` : "No needs were checked.",
     ...advice,
     $("rationale").value.trim() || "The reason for that advice has not been written yet.",
+    "",
+    "What the client chose",
+    ...clientChoiceLines(),
     $("not-disclosed").value.trim() ? `Information you did not provide: ${$("not-disclosed").value.trim()}` : "",
     $("unmet-needs").value.trim() ? `Left for later: ${$("unmet-needs").value.trim()}` : "Nothing was left for later.",
     "",
@@ -1289,6 +1487,58 @@ function clientLetterLines(model) {
     $("advisor-firm").value.trim() || DEFAULT_ADVISOR.firm,
     "Alberta Life and A&S",
   ].filter((line) => line !== "");
+}
+
+const LETTER_HEADINGS = new Set(["What we discussed", "Retirement", "TFSA and RRSP", "What I advised", "What the client chose"]);
+
+function isLetterHeading(line) {
+  if (LETTER_HEADINGS.has(line)) return true;
+  return line.startsWith("If ") && !line.includes(".");
+}
+
+function emailParagraphs(line) {
+  if (isLetterHeading(line) || line.startsWith("Dear ") || line.length < 280) return [line];
+  const sentences = line.split(/(?<=\.)\s+(?=[A-Z])/).map((part) => part.trim()).filter(Boolean);
+  return sentences.length ? sentences : [line];
+}
+
+function emailLetterParts(model) {
+  const lines = clientLetterLines(model);
+  const body = lines.slice(2, -3).flatMap(emailParagraphs);
+  return {
+    date: lines[1],
+    body,
+    signature: lines.slice(-3),
+  };
+}
+
+function escapeEmailHtml(value) {
+  return value.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[character]));
+}
+
+function emailLetterText(model) {
+  const { date, body, signature } = emailLetterParts(model);
+  const blocks = ["Reason Why Letter", date, ""];
+  for (const line of body) {
+    blocks.push(isLetterHeading(line) ? `\n${line}\n` : line, "");
+  }
+  blocks.push(signature.join("\n"));
+  return `${blocks.join("\n").replace(/\n{3,}/g, "\n\n").trim()}\n`;
+}
+
+function emailLetterHtml(model) {
+  const { date, body, signature } = emailLetterParts(model);
+  const parts = [
+    `<p style="margin:0 0 4px;font-size:20px"><strong>Reason Why Letter</strong></p>`,
+    `<p style="margin:0 0 16px;color:#444">${escapeEmailHtml(date)}</p>`,
+  ];
+  for (const line of body) {
+    parts.push(isLetterHeading(line)
+      ? `<p style="margin:18px 0 8px"><strong>${escapeEmailHtml(line)}</strong></p>`
+      : `<p style="margin:0 0 12px">${escapeEmailHtml(line)}</p>`);
+  }
+  parts.push(`<p style="margin:18px 0 0">${signature.map(escapeEmailHtml).join("<br>")}</p>`);
+  return `<div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.5;color:#111">${parts.join("")}</div>`;
 }
 
 function renderFileCopy(model) {
@@ -1308,12 +1558,11 @@ function renderFileCopy(model) {
 
   client.append(
     reportLogo(),
-    paragraph("mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-pine", "Reason why letter"),
-    paragraph("font-serif text-3xl text-pine", "Needs analysis"),
+    paragraph("mt-4 font-serif text-3xl text-pine", "Reason Why Letter"),
     paragraph("mt-1 text-sm text-ink/70", letter[1]),
   );
   for (const line of letter.slice(2)) {
-    client.append(paragraph(line.startsWith("If ") || ["What we discussed", "Retirement", "TFSA and RRSP", "What I advised"].includes(line) ? "mt-4 font-medium" : "mt-2 text-sm leading-6", line));
+    client.append(paragraph(isLetterHeading(line) ? "mt-4 font-medium" : "mt-2 text-sm leading-6", line));
   }
 
   advisor.append(
@@ -1373,9 +1622,20 @@ function renderFileCopy(model) {
     ...(guaranteedInsurabilitySentence() ? [paragraph("mt-2 text-sm leading-6", guaranteedInsurabilitySentence())] : []),
     definitionList([
       [`${personName()} capital need`, formatDollars(model.life.capitalNeed)],
+      [`${personName()} life amount recorded`, recordedDollars("recommended-life")],
+      [`${personName()} disability, monthly`, formatDollars(model.protection.clientDisability)],
+      [`${personName()} disability amount recorded`, recordedDollars("recommended-disability", " a month")],
+      [`${personName()} critical illness`, formatDollars(model.protection.clientCritical)],
+      [`${personName()} critical illness amount recorded`, recordedDollars("recommended-critical")],
       [`${personName()} surplus over the gross need`, formatDollars(model.life.surplus)],
-      [`${personName()} amount recorded`, recommendedBlank ? "Not recorded yet" : formatDollars(recommended)],
-      ...(model.spouseLife ? [[`${partnerName()} capital need`, formatDollars(model.spouseLife.capitalNeed)]] : []),
+      ...(model.spouseLife ? [
+        [`${partnerName()} capital need`, formatDollars(model.spouseLife.capitalNeed)],
+        [`${partnerName()} life amount recorded`, recordedDollars("recommended-partner-life")],
+        [`${partnerName()} disability, monthly`, formatDollars(model.protection.spouseDisability)],
+        [`${partnerName()} disability amount recorded`, recordedDollars("recommended-partner-disability", " a month")],
+        [`${partnerName()} critical illness`, formatDollars(model.protection.spouseCritical)],
+        [`${partnerName()} critical illness amount recorded`, recordedDollars("recommended-partner-critical")],
+      ] : []),
       ...childLabels().flatMap((child) => [
         [`${child} life insurance`, formatDollars(model.protection.childLifeEach)],
         [`${child} critical illness`, formatDollars(model.protection.childCiEach)],
@@ -1411,7 +1671,7 @@ function renderFileCopy(model) {
   if (model.retirement) {
     advisor.append(
       definitionList([
-        ["Monthly contributions", formatDollars(plannedSavings(model) / 12)],
+        ...contributionSchedule(model),
         ["Legacy goal", model.retirement.legacyAtDeath > 0 ? formatDollars(model.retirement.legacyAtDeath) : "None"],
         ["Balance at the end of the plan", wealthTotals(model) ? formatDollars(wealthTotals(model).atDeath) : "—"],
         ["Income in today's dollars", formatDollars(model.target.today)],
@@ -1425,6 +1685,10 @@ function renderFileCopy(model) {
   }
 
   advisor.append(
+    heading("What the client chose"),
+    definitionList(clientChoicePairs()),
+    paragraph("mt-2 text-sm leading-6", $("chosen-reason").value.trim() || `${personName()}: the reason this choice matches or differs from the recommendation has not been written yet.`),
+    ...(hasPartner() ? [paragraph("mt-2 text-sm leading-6", $("chosen-partner-reason").value.trim() || `${partnerName()}: the reason this choice matches or differs from the recommendation has not been written yet.`)] : []),
     heading("Needs assessed"),
     paragraph("mt-2 text-sm", needs.length ? needs.join(", ") : "None checked."),
     heading("Not provided"),
@@ -1503,6 +1767,7 @@ function render() {
   $("partner-corp-fields").classList.toggle("hidden", !hasPartner() || !$("partner-owns-corp").checked);
   $("inflation-average-note").textContent = `Starts at the ${inflationHistory.count}-year Canadian average, ${defaultInflation}% (${inflationHistory.from}–${inflationHistory.to}). Slide it, or type a rate. Life insurance capital stays in today's dollars.`;
   const model = buildModel();
+  draftRecommendations(model);
   const hint = $("years-hint");
   hint.replaceChildren();
   for (const line of incomeReplacementLines(model)) {
@@ -1547,14 +1812,12 @@ function render() {
     $("savings-destination").textContent = "";
     notes.push(`Enter ${personName()}'s age and a likely age at death to draw the balances.`);
   } else {
-    const month = plannedSavings(model) / 12;
+    const headline = contributionHeadline(model);
     const gap = legacyGap(model);
-    setOutputs("savings-label", "Monthly contributions");
-    setOutputs("savings", formatDollars(month), Math.round(month));
+    setOutputs("savings-label", headline.label);
+    setOutputs("savings", formatMoney(headline.monthly), Math.round(headline.monthly));
     const rows = [
-      ["TFSA, monthly", formatDollars(model.portfolio.monthly.tfsa)],
-      ["RRSP, monthly", formatDollars(model.portfolio.monthly.rrsp)],
-      ["Non-registered, monthly", formatDollars(model.portfolio.monthly.nonReg)],
+      ...contributionSchedule(model),
       ["Yearly income today", formatDollars(model.target.today)],
       ["Yearly income at retirement", formatDollars(model.target.nominal)],
       ["CPP and OAS at retirement", formatDollars(model.portfolio.rows.find((row) => row.retired)?.pension || 0)],
@@ -1574,6 +1837,9 @@ function render() {
     if (model.retirement?.oasRepayment > 0) {
       notes.push(`OAS is reduced by ${formatDollars(model.retirement.oasRepayment)}. The income counted is CPP, OAS, and other taxable income entered above. TFSA withdrawals are not included. That total is above the ${oasAmounts.incomeYear} threshold.`);
     }
+    if (!blank("retirement-age") && readMoney($("retirement-age").value) < 60 && readMoney($("cpp-annual").value) > 0) {
+      notes.push("CPP starts at 60. Until then, the income from the accounts does not subtract it.");
+    }
     if (!blank("retirement-age") && readMoney($("retirement-age").value) < 65 && readMoney($("oas-annual").value) > 0) {
       notes.push("OAS starts at 65. Until then, the income from the accounts does not subtract it.");
     }
@@ -1585,7 +1851,7 @@ function render() {
   $("calc-notes").textContent = notes.join(" ");
   renderTfsaBreakdown(model.tfsa);
   $("tfsa-room-note").textContent = `Lifetime TFSA room on the schedule runs from ${tfsaContributionLimit.introducedYear} through ${tfsaContributionLimit.taxYear}. It assumes the birthday has already happened and Canadian residence in every year counted. Room available now is the amount you enter.`;
-  $("rrsp-room-note").textContent = `CPP is estimated from income over the last five years, capped at the yearly maximum pensionable earnings. OAS is estimated from years lived in Canada after 18, out of 40. Type a different amount, or use the maximum button. RRSP room available now is the amount you enter. New room ignores a pension adjustment.`;
+  $("rrsp-room-note").textContent = `CPP uses earnings capped at the yearly maximum pensionable earnings, then the share of a 39-year contribution history already reached. One year at that cap is not the full maximum. OAS is years lived in Canada after 18, out of 40. Type a different amount, or use the maximum button. RRSP room available now is the amount you enter. New room ignores a pension adjustment.`;
   $("future-room-note").textContent = futureRoomSentence(model);
   renderNeedChart(model);
   renderWealthChart(model);
@@ -2332,6 +2598,13 @@ function resetSession() {
     earlyDeath: false,
     disabilityMonths: false,
     allocation: false,
+    recommendedLife: false,
+    recommendedDisability: false,
+    recommendedCritical: false,
+    recommendedPartnerLife: false,
+    recommendedPartnerDisability: false,
+    recommendedPartnerCritical: false,
+    rationale: false,
   });
   fillDefaults();
   $("advisor-name").value = advisorName.trim() || DEFAULT_ADVISOR.name;
@@ -2425,6 +2698,13 @@ function markDirty(target) {
   if (target.id === "early-death-age") dirty.earlyDeath = true;
   if (target.id === "disability-months") dirty.disabilityMonths = true;
   if (target.id === "rrsp-share") dirty.allocation = true;
+  if (target.id === "recommended-life") dirty.recommendedLife = true;
+  if (target.id === "recommended-disability") dirty.recommendedDisability = true;
+  if (target.id === "recommended-critical") dirty.recommendedCritical = true;
+  if (target.id === "recommended-partner-life") dirty.recommendedPartnerLife = true;
+  if (target.id === "recommended-partner-disability") dirty.recommendedPartnerDisability = true;
+  if (target.id === "recommended-partner-critical") dirty.recommendedPartnerCritical = true;
+  if (target.id === "rationale") dirty.rationale = true;
 }
 
 function syncInflation(target) {
@@ -2508,17 +2788,37 @@ function clearLegacyStorage() {
 
 function printReport(which) {
   document.body.dataset.print = which;
+  const clear = () => {
+    delete document.body.dataset.print;
+    window.removeEventListener("afterprint", clear);
+  };
+  window.addEventListener("afterprint", clear);
   window.print();
 }
 
 async function copyLetter() {
   const button = $("copy-letter");
-  const text = clientLetterLines(lastModel).join("\n");
+  const text = emailLetterText(lastModel);
+  const html = emailLetterHtml(lastModel);
   try {
-    await navigator.clipboard.writeText(text);
+    if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": new Blob([text], { type: "text/plain" }),
+          "text/html": new Blob([html], { type: "text/html" }),
+        }),
+      ]);
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
     button.textContent = "Copied";
   } catch {
-    button.textContent = "Select the letter and copy it";
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Select the letter and copy it";
+    }
   }
   setTimeout(() => {
     button.textContent = "Copy letter for email";

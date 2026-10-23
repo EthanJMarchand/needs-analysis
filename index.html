@@ -108,9 +108,17 @@
         }
         .report-break {
           break-before: page;
+          page-break-before: always;
+        }
+        body[data-print="advisor"] #advisor-record {
+          break-before: auto !important;
+          page-break-before: auto !important;
         }
         body[data-print="client"] #advisor-record,
         body[data-print="advisor"] #client-letter {
+          display: none !important;
+        }
+        main > .grid {
           display: none !important;
         }
       }
@@ -677,7 +685,7 @@
 
         <section class="rounded-xl border border-line bg-card p-5">
           <h2 class="font-serif text-2xl">Reason why</h2>
-          <p class="mt-1 text-sm text-ink/70">The record should show which needs you assessed, the amount you will actually recommend, and anything the client would not tell you.</p>
+          <p class="mt-1 text-sm text-ink/70">The record should show which needs you assessed, the amount you will actually recommend, and anything the client would not tell you. The recommendation amounts and the reason start from this worksheet. Change any line that should read differently.</p>
           <fieldset class="mt-4">
             <legend class="text-sm font-medium">Needs assessed</legend>
             <div class="mt-2 grid gap-2 sm:grid-cols-2 text-sm">
@@ -690,13 +698,69 @@
               <label class="flex gap-2"><input id="obj-critical" type="checkbox" /> Critical illness</label>
             </div>
           </fieldset>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-lg border border-line bg-white p-4">
+              <p id="recommended-person-heading" class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1</p>
+              <label class="mt-3 block text-sm font-medium"><span id="recommended-life-label">Life amount you will recommend</span>
+                <input id="recommended-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="mt-3 block text-sm font-medium"><span id="recommended-disability-label">Disability benefit you will recommend, monthly</span>
+                <input id="recommended-disability" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="mt-3 block text-sm font-medium"><span id="recommended-critical-label">Critical illness amount you will recommend</span>
+                <input id="recommended-critical" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4">
+              <p id="recommended-partner-heading" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+              <label class="mt-3 block text-sm font-medium"><span id="recommended-partner-life-label">Life amount you will recommend</span>
+                <input id="recommended-partner-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="mt-3 block text-sm font-medium"><span id="recommended-partner-disability-label">Disability benefit you will recommend, monthly</span>
+                <input id="recommended-partner-disability" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="mt-3 block text-sm font-medium"><span id="recommended-partner-critical-label">Critical illness amount you will recommend</span>
+                <input id="recommended-partner-critical" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+          </div>
+          <div class="mt-6">
+            <h3 class="font-serif text-xl">What the client chose</h3>
+            <p class="mt-1 text-sm text-ink/70">Record how much of each coverage the client decided on, and why that choice matches or differs from the recommendation.</p>
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+              <div class="rounded-lg border border-line bg-white p-4">
+                <p id="chosen-person-heading" class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1</p>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-life-label">Life insurance the client chose</span>
+                  <input id="chosen-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-disability-label">Disability benefit the client chose, monthly</span>
+                  <input id="chosen-disability" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-critical-label">Critical illness the client chose</span>
+                  <input id="chosen-critical" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-reason-label">Why this matches or differs from the recommendation</span>
+                  <textarea id="chosen-reason" rows="3" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
+                </label>
+              </div>
+              <div class="person-spouse partner-only hidden rounded-lg p-4">
+                <p id="chosen-partner-heading" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-partner-life-label">Life insurance the client chose</span>
+                  <input id="chosen-partner-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-partner-disability-label">Disability benefit the client chose, monthly</span>
+                  <input id="chosen-partner-disability" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-partner-critical-label">Critical illness the client chose</span>
+                  <input id="chosen-partner-critical" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="mt-3 block text-sm font-medium"><span id="chosen-partner-reason-label">Why this matches or differs from the recommendation</span>
+                  <textarea id="chosen-partner-reason" rows="3" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
+                </label>
+              </div>
+            </div>
+          </div>
           <div class="mt-4 grid gap-4">
-            <label class="block text-sm font-medium"><span id="recommended-life-label">Life amount you will recommend for Person 1</span>
-              <input id="recommended-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
-            </label>
-            <label class="partner-only hidden block text-sm font-medium"><span id="recommended-partner-life-label">Life amount you will recommend for Person 2</span>
-              <input id="recommended-partner-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
-            </label>
             <label class="block text-sm font-medium">Information the client did not provide
               <textarea id="not-disclosed" rows="2" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
             </label>

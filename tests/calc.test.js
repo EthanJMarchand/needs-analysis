@@ -14,11 +14,11 @@ import { deathTaxAtYear } from "../js/calc/death-tax.js";
 import { calculateLifeNeed, endOfLifeFloor } from "../js/calc/life-need.js";
 import { annuityPayment, presentValue, presentValueOfAnnuity, readMoney, savingsForFutureValue } from "../js/calc/money.js";
 import { incomeReplacementYears, incomeYearsAtAge, projectLifeNeed } from "../js/calc/need-path.js";
-import { estimateCpp, estimateOas } from "../js/calc/pensions.js";
+import { CPP_FULL_CAREER_YEARS, cppContributionYears, estimateCpp, estimateOas } from "../js/calc/pensions.js";
 import { calculateProbate } from "../js/calc/probate.js";
 import { criticalIllnessLumpSum, disabilityMonthlyBenefit } from "../js/calc/protection.js";
 import { calculateRetirement, taxableRetirementIncome } from "../js/calc/retirement.js";
-import { depositsOverYears, projectPortfolio } from "../js/calc/portfolio-path.js";
+import { depositsOverYears, describeDeposits, projectPortfolio } from "../js/calc/portfolio-path.js";
 import { balanceAfterWithdrawals, balanceAtAge, wealthPath } from "../js/calc/wealth-path.js";
 import { taxOnIncome, taxOnInclusion } from "../js/calc/tax.js";
 
@@ -754,9 +754,14 @@ test("the insurance path pays the mortgage down, and a future house stays out of
 
 test("CPP and OAS guesses use earnings and years in Canada", () => {
   const maxCpp = Math.round(cppAmounts.maxMonthlyRetirementAt65 * 12 * 100) / 100;
-  assert.equal(estimateCpp(cppAmounts.ympe, cppAmounts.ympe, maxCpp), maxCpp);
-  assert.equal(estimateCpp(95000, cppAmounts.ympe, maxCpp), maxCpp);
-  assert.equal(estimateCpp(37300, cppAmounts.ympe, maxCpp), Math.round(maxCpp * 0.5 * 100) / 100);
+  const full = CPP_FULL_CAREER_YEARS;
+  assert.equal(cppContributionYears(42), 24);
+  assert.equal(estimateCpp(cppAmounts.ympe, cppAmounts.ympe, maxCpp, full), maxCpp);
+  assert.equal(estimateCpp(95000, cppAmounts.ympe, maxCpp, full), maxCpp);
+  assert.equal(estimateCpp(95000, cppAmounts.ympe, maxCpp, 24), Math.round(maxCpp * (24 / full) * 100) / 100);
+  assert.ok(estimateCpp(95000, cppAmounts.ympe, maxCpp, 24) < maxCpp * 0.7);
+  assert.equal(estimateCpp(37300, cppAmounts.ympe, maxCpp, full), Math.round(maxCpp * 0.5 * 100) / 100);
+  assert.equal(estimateCpp(95000, cppAmounts.ympe, maxCpp), 0);
   const maxOas = oasAmounts.maxMonthlyAge65to74 * 12;
   assert.equal(estimateOas(40, maxOas), maxOas);
   assert.equal(estimateOas(24, maxOas), Math.round(maxOas * 0.6 * 100) / 100);
@@ -905,6 +910,56 @@ test("the same goal costs less out of pocket when the RRSP refund is worth more 
   assert.ok(rrsp < tfsa);
 });
 
+test("the schedule reports this year's deposit and when the room is binding", () => {
+  const open = projectPortfolio({
+    currentAge: 40,
+    retirementAge: 42,
+    years: 3,
+    tfsaAnnual: 12000,
+    tfsaRoomNow: 100000,
+    tfsaNewRoom: [7000, 7000],
+    province: "AB",
+  });
+  assert.equal(open.deposits.tfsa, 12000);
+  assert.equal(open.deposits.tfsaLimited, false);
+
+  const capped = projectPortfolio({
+    currentAge: 40,
+    retirementAge: 65,
+    years: 5,
+    tfsaAnnual: 24000,
+    tfsaRoomNow: 0,
+    tfsaNewRoom: [7000, 7000, 7000, 7000, 7000],
+    province: "AB",
+  });
+  assert.equal(capped.deposits.tfsa, capped.rows[0].tfsaIn);
+  assert.ok(capped.deposits.tfsa < 24000);
+  assert.equal(capped.deposits.tfsaLimited, true);
+
+  const nextYear = projectPortfolio({
+    currentAge: 40,
+    retirementAge: 65,
+    years: 4,
+    startYear: 2026,
+    tfsaAnnual: 14000,
+    rrspAnnual: 5000,
+    tfsaRoomNow: 0,
+    rrspRoomNow: 0,
+    tfsaNewRoom: [14000, 14000, 14000],
+    rrspNewRoom: [5000, 5000, 5000],
+    province: "AB",
+  });
+  const described = describeDeposits(nextYear.rows);
+  assert.equal(described.accounts.tfsa.thisYear, 0);
+  assert.equal(described.accounts.tfsa.later, 14000);
+  assert.equal(described.accounts.tfsa.laterOffset, 1);
+  assert.equal(described.accounts.rrsp.later, 5000);
+  assert.equal(described.accounts.rrsp.laterOffset, 1);
+  assert.equal(described.headline.offset, 1);
+  assert.equal(described.headline.annual, 19000);
+  assert.equal(described.headline.calendarYear, 2027);
+});
+
 test("TFSA and RRSP deposits stay at the slider until room runs out", () => {
   const capped = depositsOverYears({
     desiredAnnual: 12000,
@@ -986,6 +1041,36 @@ test("CPP and OAS reduce what the accounts withdraw", () => {
   assert.ok(helped.rows[0].pension >= 18000);
   assert.ok(helped.rows[0].withdrawal < alone.rows[0].withdrawal - 10000);
   assert.ok(helped.ending > alone.ending);
+});
+
+test("CPP waits until each person is 60, and a younger spouse is left out", () => {
+  const shared = {
+    currentAge: 65,
+    retirementAge: 65,
+    years: 0,
+    clientCppToday: 10000,
+    clientOasToday: 8000,
+    partnerCppToday: 10000,
+    partnerOasToday: 8000,
+    inflationRate: 0,
+    province: "AB",
+  };
+  const partnerTooYoung = projectPortfolio({ ...shared, partnerAge: 48 });
+  assert.equal(partnerTooYoung.rows[0].pension, 18000);
+  const partnerCppOnly = projectPortfolio({ ...shared, partnerAge: 60 });
+  assert.equal(partnerCppOnly.rows[0].pension, 28000);
+  const bothOfAge = projectPortfolio({ ...shared, partnerAge: 65 });
+  assert.equal(bothOfAge.rows[0].pension, 36000);
+  const clientTooYoung = projectPortfolio({
+    currentAge: 55,
+    retirementAge: 55,
+    years: 0,
+    clientCppToday: 10000,
+    clientOasToday: 8000,
+    inflationRate: 0,
+    province: "AB",
+  });
+  assert.equal(clientTooYoung.rows[0].pension, 0);
 });
 
 test("OAS starts at 65 and CPP counts from retirement", () => {
