@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Needs worksheet · Ethan Marchand</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              paper: "#e8e4df",
+              card: "#ffffff",
+              ink: "#0d232a",
+              pine: "#618986",
+              moss: "#4e7270",
+              line: "#d5d0c9",
+            },
+            fontFamily: {
+              serif: ["Poppins", "system-ui", "sans-serif"],
+              sans: ["Poppins", "system-ui", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: Poppins, system-ui, sans-serif;
+      }
+      body h1,
+      body h2,
+      body h3,
+      body .font-serif {
+        font-weight: 600;
+      }
+      .nums {
+        font-variant-numeric: tabular-nums;
+      }
+      .figure {
+        font-weight: 700;
+        color: #0d232a;
+      }
+      .person-spouse {
+        background: #f3f7f6;
+        border: 1px solid #618986;
+      }
+      #meeting-partner.person-spouse {
+        margin-right: -1.25rem;
+        margin-left: -1.25rem;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+        padding: 1.25rem 1.25rem 1.5rem;
+      }
+      body:not([data-scope="insurance"]):not([data-scope="both"]) .scope-insurance,
+      body:not([data-scope="planning"]):not([data-scope="both"]) .scope-planning {
+        display: none !important;
+      }
+      .need-chart {
+        position: relative;
+      }
+      .need-guide-y,
+      .need-guide-x {
+        position: absolute;
+        pointer-events: none;
+        background: #0d232a;
+        opacity: 0;
+        transition: left 90ms linear, top 90ms linear, width 90ms linear, opacity 120ms linear;
+      }
+      .need-guide-y {
+        width: 1px;
+        top: 0;
+      }
+      .need-guide-x {
+        height: 1px;
+        left: 0;
+      }
+      .need-tip {
+        position: absolute;
+        pointer-events: none;
+        opacity: 0;
+        transition: left 90ms linear, top 90ms linear, opacity 120ms linear;
+      }
+      @media print {
+        .no-print,
+        header,
+        form,
+        aside {
+          display: none !important;
+        }
+        body {
+          background: white !important;
+        }
+        #client-letter,
+        #advisor-record {
+          border: none !important;
+          box-shadow: none !important;
+          margin-top: 0 !important;
+          padding: 0 !important;
+        }
+        .report-break {
+          break-before: page;
+        }
+        body[data-print="client"] #advisor-record,
+        body[data-print="advisor"] #client-letter {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-paper text-ink">
+    <noscript>
+      <p class="mx-auto max-w-6xl px-4 py-6">This worksheet needs JavaScript. It still does not send data to a server.</p>
+    </noscript>
+
+    <header class="border-b border-line bg-paper">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5">
+        <div>
+          <a href="https://advisorstrategies.ca/" class="flex items-center gap-3" aria-label="Advisor Strategies Inc.">
+            <img src="./images/advisor-strategies-mark.png" alt="" class="h-14 w-auto shrink-0" />
+            <span class="text-lg text-ink">Advisor Strategies Inc.</span>
+          </a>
+          <h1 class="mt-3 text-2xl text-ink">Needs worksheet</h1>
+        </div>
+        <div class="text-right">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-pine">Alberta Life and A&amp;S</p>
+          <p class="text-xl text-ink">Ethan Marchand</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="sticky top-0 z-10 border-b border-line bg-paper/95 no-print backdrop-blur lg:hidden">
+      <div class="mx-auto flex max-w-6xl justify-between gap-4 px-4 py-3">
+        <div class="scope-insurance">
+          <p id="mobile-life-label" class="text-xs uppercase tracking-wide text-ink/60">Person 1 life capital</p>
+          <p data-out="life" class="figure nums font-serif text-2xl">$0</p>
+        </div>
+        <div class="scope-planning text-right">
+          <p data-out="savings-label" class="text-xs uppercase tracking-wide text-ink/60">Monthly contributions</p>
+          <p data-out="savings" class="figure nums font-serif text-2xl">$0</p>
+        </div>
+      </div>
+    </div>
+
+    <main class="mx-auto max-w-6xl space-y-8 px-4 py-8">
+      <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <form id="worksheet" class="space-y-6" autocomplete="off">
+        <p class="text-sm leading-6 text-ink/80">
+          Entries stay in this tab only. Closing the tab discards them. Nothing is saved in the browser
+          and nothing is sent anywhere. This page records the need and the reason why. You choose the product.
+        </p>
+
+        <section class="rounded-xl border border-line bg-card p-5">
+          <h2 id="planning-heading" class="font-serif text-2xl">What planning is this meeting for?</h2>
+          <p class="mt-2 text-sm leading-6 text-ink/70">Life insurance, disability, and critical illness are needs a Life and A&amp;S licence covers. Financial planning here is the retirement income gap and where the additional savings can sit. A Life and A&amp;S licence does not authorize a securities recommendation. This page does not choose a policy or an investment.</p>
+          <fieldset class="mt-3" aria-labelledby="planning-heading">
+            <legend class="sr-only">What planning is this meeting for?</legend>
+            <label class="flex gap-2 text-sm font-medium">
+              <input type="radio" name="planning-mode" value="insurance" />
+              Life insurance, disability, and critical illness
+            </label>
+            <label class="mt-2 flex gap-2 text-sm font-medium">
+              <input type="radio" name="planning-mode" value="planning" />
+              Financial planning
+            </label>
+            <label class="mt-2 flex gap-2 text-sm font-medium">
+              <input type="radio" name="planning-mode" value="both" />
+              Both
+            </label>
+          </fieldset>
+        </section>
+
+        <section class="rounded-xl border border-line bg-card p-5">
+          <h2 class="font-serif text-2xl">Your file</h2>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">Advisor name
+              <input id="advisor-name" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Firm
+              <input id="advisor-firm" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Meeting date
+              <input id="meeting-date" type="date" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+            <label class="block text-sm font-medium">Who is this worksheet for?
+              <input id="client-name" value="Person 1" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+          </div>
+          <fieldset class="mt-4">
+            <legend class="text-sm font-medium">What did the client ask you to do?</legend>
+            <label class="mt-2 flex gap-2 text-sm">
+              <input type="radio" name="engagement" value="advice" checked />
+              Advice, based on a needs assessment
+            </label>
+            <label class="mt-1 flex gap-2 text-sm">
+              <input type="radio" name="engagement" value="stated" />
+              The client already identified the need
+            </label>
+          </fieldset>
+          <label id="stated-need-wrap" class="mt-3 hidden block text-sm font-medium">
+            Need the client already identified
+            <textarea id="stated-need" rows="2" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
+          </label>
+        </section>
+
+        <section class="rounded-xl border border-line bg-card p-5">
+          <h2 class="font-serif text-2xl">Household</h2>
+          <label class="mt-4 flex items-center gap-2 text-sm font-medium">
+            <input id="has-partner" type="checkbox" />
+            There is a spouse or partner
+          </label>
+          <div class="mt-4 grid gap-4 lg:grid-cols-2">
+            <div class="rounded-lg border border-line bg-white p-4">
+              <p id="person-heading-household" class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1</p>
+              <label class="mt-3 block text-sm font-medium"><span id="person-age-label">Person 1's age</span>
+                <input id="client-age" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+              </label>
+              <label class="mt-3 block text-sm font-medium">Retirement age
+                <input id="retirement-age" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+              </label>
+              <label class="mt-3 block text-sm font-medium">What is your annual personal income?
+                <input id="personal-income" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4">
+              <p id="partner-heading-household" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+              <label class="mt-3 block text-sm font-medium"><span>Spouse's name</span>
+                <input id="partner-name" value="Person 2" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="mt-3 block text-sm font-medium"><span id="partner-age-label">Person 2's age</span>
+                <input id="partner-age" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+              </label>
+              <label class="mt-3 block text-sm font-medium"><span id="partner-income-label">Person 2's annual income</span>
+                <input id="partner-income" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+          </div>
+          <div class="mt-4 rounded-md bg-paper px-3 py-3 text-sm">
+            <p class="font-medium">Household income</p>
+            <p id="household-income" class="figure nums mt-1 text-2xl">$0</p>
+            <p class="mt-1 text-ink/70">Personal income plus the spouse's income. This is calculated. It is not a separate entry.</p>
+          </div>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">How many dependants do you have?
+              <input id="dependant-count" inputmode="numeric" value="0" class="mt-1 block w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+            <label class="block text-sm font-medium"><span id="planned-children-text" class="block">How many children do you hope to have?</span>
+              <input id="planned-children" inputmode="numeric" value="0" class="mt-1 block w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+          </div>
+          <div id="dependant-ages" class="mt-4 grid gap-3 sm:grid-cols-3"></div>
+          <p class="mt-2 text-sm text-ink/70">Planned children are shown on the insurance graph as arriving two years apart. Each one adds an education amount until the independence age. A policy is not recommended on a child who is not born yet.</p>
+        </section>
+
+        <section class="scope-insurance rounded-xl border border-line bg-card p-5">
+          <h2 id="death-heading" class="font-serif text-2xl">If Person 1 dies</h2>
+          <p id="death-intro" class="mt-1 text-sm text-ink/70">The mortgage and the children are shared. Income to replace is calculated for this person from the years below.</p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-lg border border-line bg-white p-4">
+              <label class="block text-sm font-medium" for="death-age"><span id="death-age-label">Person 1's likely age at death</span>
+                <input id="death-age" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4">
+              <label class="block text-sm font-medium" for="partner-death-age"><span id="partner-death-age-label">Person 2's likely age at death</span>
+                <input id="partner-death-age" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+          </div>
+          <p class="mt-2 text-sm text-ink/70">Each insurance chart runs to that person's age. It starts from the Canadian average.</p>
+          <label class="mt-4 block text-sm font-medium">Income to replace (%)
+            <input id="replacement-ratio" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2 sm:max-w-xs" />
+          </label>
+          <div class="mt-4 sm:max-w-xl">
+            <label class="block text-sm font-medium" for="income-years-slider">For how long</label>
+            <div class="mt-2 flex items-center gap-4">
+              <input id="income-years-slider" type="range" min="0" max="40" step="1" value="10" class="w-full accent-pine" />
+              <input id="income-years" inputmode="numeric" value="10" aria-label="Years of income to replace" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </div>
+            <div id="years-hint" class="mt-2 space-y-1 text-sm text-ink/70">
+              <p>Years of income the death benefit should replace. The slider starts at 10 years.</p>
+            </div>
+          </div>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">Mortgage balance
+              <input id="debts" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label id="mortgage-years-wrap" class="block text-sm font-medium">Years left on the mortgage
+              <input id="mortgage-years" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Other debts to clear
+              <input id="other-debts" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Final expenses
+              <input id="final-expenses" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+            <label class="block text-sm font-medium">Education fund per dependant still under the independence age
+              <input id="education-amount" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+            <div class="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+              <label class="block text-sm font-medium"><span id="client-coverage-label">Personal life insurance in force on Person 1</span>
+                <input id="existing-coverage" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <div class="person-spouse partner-only hidden rounded-lg p-4">
+                <p id="partner-coverage-heading" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+                <label class="mt-3 block text-sm font-medium"><span id="partner-personal-coverage-label">Personal life insurance already in force on Person 2</span>
+                  <input id="partner-existing-coverage" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <p id="partner-coverage-note" class="mt-2 text-sm text-ink/70">This reduces Person 2's need only. The mortgage and the children's education stay in both.</p>
+              </div>
+            </div>
+            <label class="block text-sm font-medium">Assets the survivor would use for this need
+              <input id="assets-at-death" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <span class="mt-1 block font-normal text-ink/70">These assets reduce the need if either person dies.</span>
+            </label>
+          </div>
+          <div class="mt-4 space-y-4 text-sm">
+            <label class="flex gap-2 font-medium"><input id="client-owns-corp" type="checkbox" /> <span id="client-owns-corp-label">Person 1 owns a corporation</span></label>
+            <div id="client-corp-fields" class="hidden rounded-lg border border-line bg-white p-4">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block text-sm font-medium"><span id="client-corporate-coverage-label">Life insurance the corporation already owns on Person 1</span>
+                  <input id="corporate-coverage" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="block text-sm font-medium">Adjusted cost base of that corporate policy
+                  <input id="corporate-acb" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+              </div>
+              <label class="mt-4 flex gap-2 text-sm font-medium">
+                <input id="count-corporate" type="checkbox" />
+                <span id="client-count-corporate-label">Count that corporate coverage toward Person 1's capital need</span>
+              </label>
+              <p class="mt-2 text-sm text-ink/70">This is asked only after the corporation box is checked. It reduces this person's need only when you count it. The death benefit is generally tax-free. The corporation can usually pay the proceeds minus the adjusted cost base out as a capital dividend.</p>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4">
+            <label class="flex gap-2 font-medium"><input id="partner-owns-corp" type="checkbox" /> <span id="partner-owns-corp-label">Person 2 owns a corporation</span></label>
+            <div id="partner-corp-fields" class="hidden">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block text-sm font-medium"><span id="partner-corporate-coverage-label">Life insurance a corporation already owns on Person 2</span>
+                  <input id="partner-corporate-coverage" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+                <label class="block text-sm font-medium">Adjusted cost base of that corporate policy
+                  <input id="partner-corporate-acb" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+                </label>
+              </div>
+              <label class="mt-4 flex gap-2 text-sm font-medium">
+                <input id="partner-count-corporate" type="checkbox" />
+                <span id="partner-count-corporate-label">Count that corporate coverage toward Person 2's capital need</span>
+              </label>
+              <p class="mt-2 text-sm text-ink/70">This is asked only after Person 2's corporation box is checked. It reduces Person 2's need only when you count it. It does not reduce the other person's need.</p>
+            </div>
+            </div>
+          </div>
+          <div id="house-plan" class="mt-4 hidden rounded-md bg-paper p-3">
+            <label class="flex gap-2 text-sm font-medium">
+              <input id="plan-house" type="checkbox" />
+              There is no mortgage. A home purchase is in the plan.
+            </label>
+            <div id="house-plan-fields" class="mt-3 hidden grid gap-4 sm:grid-cols-3">
+              <label class="block text-sm font-medium">Mortgage you expect to take
+                <input id="future-mortgage" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="block text-sm font-medium">Years until that purchase
+                <input id="years-until-purchase" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <label class="block text-sm font-medium">Years to pay that mortgage
+                <input id="future-amortization" inputmode="numeric" value="25" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+            </div>
+            <p id="house-plan-note" class="mt-3 hidden text-sm leading-6 text-ink/80"></p>
+          </div>
+          <div class="mt-5">
+            <h3 class="font-serif text-xl">Life insurance need over time</h3>
+            <p class="mt-1 text-sm text-ink/70">Each line runs from today to the likely age at death. Income replacement stays at the years chosen until retirement is that close, then it steps down, and those dollars rise with inflation. The dashed line is the mortgage, paid down in a straight line, and it does not rise with inflation. Final expenses and probate rise every year with inflation. Tax on the non-registered account, on assets that go through the estate, and on an RRSP that does not roll to an eligible beneficiary is in the line, and it rises as those amounts grow. Amounts are on the left. Age is along the bottom.</p>
+            <p id="need-chart-person" class="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1</p>
+            <div id="need-chart" class="need-chart mt-3"></div>
+            <p id="longevity-note" class="mt-3 text-sm leading-6"></p>
+            <div class="person-spouse partner-only mt-4 hidden rounded-lg p-4">
+              <p id="partner-need-chart-heading" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+              <div id="partner-need-chart" class="need-chart mt-3"></div>
+              <p id="partner-longevity-note" class="mt-3 text-sm leading-6"></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="scope-insurance rounded-xl border border-line bg-card p-5">
+          <h2 class="font-serif text-2xl">Disability and critical illness</h2>
+          <p class="mt-1 text-sm leading-6 text-ink/70">Disability is a monthly benefit. Critical illness is one lump sum for the months of earned income needed to recover. This replaces earned income only. Income from investments is not included. These are amounts. This worksheet does not choose a product.</p>
+          <div class="mt-4 grid gap-4 lg:grid-cols-2">
+            <div class="rounded-lg border border-line bg-white p-4">
+              <p id="person-heading-protection" class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1</p>
+              <p class="mt-3 text-sm">Disability benefit, monthly</p>
+              <p id="client-di" class="figure nums text-2xl">$0</p>
+              <p class="mt-3 text-sm">Critical illness, lump sum</p>
+              <p id="client-ci" class="figure nums text-2xl">$0</p>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4">
+              <p id="partner-heading-protection" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+              <p class="mt-3 text-sm">Disability benefit, monthly</p>
+              <p id="spouse-di" class="figure nums text-2xl">$0</p>
+              <p class="mt-3 text-sm">Critical illness, lump sum</p>
+              <p id="spouse-ci" class="figure nums text-2xl">$0</p>
+            </div>
+          </div>
+          <label class="mt-4 block text-sm font-medium sm:max-w-xs">Months of income the disability benefit should replace
+            <input id="disability-months" inputmode="numeric" class="mt-1 block w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+          </label>
+          <p id="disability-hint" class="mt-2 text-sm text-ink/70"></p>
+          <div class="mt-4 max-w-xl">
+            <label class="block text-sm font-medium" for="ci-ratio-slider">Earned income to replace for a critical illness (%)</label>
+            <div class="mt-2 flex items-center gap-4">
+              <input id="ci-ratio-slider" type="range" min="0" max="100" step="1" value="70" class="w-full accent-pine" />
+              <input id="ci-ratio" inputmode="decimal" value="70" aria-label="Percent of earned income to replace for a critical illness" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </div>
+          </div>
+          <div class="mt-4 max-w-xl">
+            <label class="block text-sm font-medium" for="ci-months-slider">Months of earned income to recover from a critical illness</label>
+            <div class="mt-2 flex items-center gap-4">
+              <input id="ci-months-slider" type="range" min="0" max="36" step="1" value="12" class="w-full accent-pine" />
+              <input id="ci-months" inputmode="numeric" value="12" aria-label="Months of earned income to recover from a critical illness" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </div>
+            <p id="ci-hint" class="mt-2 text-sm text-ink/70"></p>
+          </div>
+          <div id="child-coverage" class="mt-4 hidden grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">Life insurance on each child already born
+              <input id="child-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Critical illness on each child already born
+              <input id="child-ci" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+          </div>
+          <div id="child-recommendations" class="mt-4 grid gap-3 sm:grid-cols-2"></div>
+        </section>
+
+        <section class="scope-planning rounded-xl border border-line bg-card p-5">
+          <h2 class="font-serif text-2xl">Retirement</h2>
+          <p class="mt-1 text-sm text-ink/70">The table runs from this year to the later of the two likely ages at death. Contributions stop at retirement. CPP and OAS cover part of the after-tax income, and the accounts withdraw the rest.</p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-lg border border-line bg-white p-4">
+              <p id="person-heading-retirement" class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1</p>
+            <label class="mt-3 block text-sm font-medium">Average employment income over the last 5 years
+              <input id="income-history" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <span class="mt-1 block font-normal text-ink/70">Leave this blank to use this year's income.</span>
+            </label>
+            <label class="block text-sm font-medium">Years lived in Canada after age 18
+              <input id="canada-years" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">CPP you are counting on, yearly
+              <input id="cpp-annual" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <button id="use-max-cpp" type="button" class="mt-2 text-sm font-medium text-pine underline">Use the 2026 maximum at 65</button>
+            </label>
+            <label class="block text-sm font-medium">OAS you are counting on, yearly
+              <input id="oas-annual" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <button id="use-max-oas" type="button" class="mt-2 text-sm font-medium text-pine underline">Use the current maximum</button>
+            </label>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4">
+              <p id="partner-heading-retirement" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2</p>
+            <label class="partner-only mt-3 block text-sm font-medium"><span id="partner-history-label">Person 2's average income over the last 5 years</span>
+              <input id="partner-income-history" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <span class="mt-1 block font-normal text-ink/70">Leave this blank to use this year's income.</span>
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-canada-label">Years Person 2 has lived in Canada after age 18</span>
+              <input id="partner-canada-years" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-cpp-label">Person 2 CPP, yearly</span>
+              <input id="partner-cpp" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+              <button id="use-max-partner-cpp" type="button" class="mt-2 text-sm font-medium text-pine underline">Use the 2026 maximum at 65</button>
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-oas-label">Person 2 OAS, yearly</span>
+              <input id="partner-oas" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+              <button id="use-max-partner-oas" type="button" class="mt-2 text-sm font-medium text-pine underline">Use the age 65–74 maximum</button>
+            </label>
+            </div>
+            <label class="block text-sm font-medium sm:col-span-2">
+              <span id="client-retirement-income-label">Other taxable income Person 1 will have in retirement, besides CPP, OAS, and these savings</span>
+              <input id="client-retirement-income" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" value="0" />
+              <span id="client-retirement-income-note" class="mt-1 block font-normal text-ink/70">A pension or rent. Leave this at zero when there is none. CPP and OAS reduce what the accounts withdraw. TFSA withdrawals are not income for the OAS screen.</span>
+            </label>
+            <div class="sm:col-span-2">
+              <label class="flex gap-2 text-sm font-medium">
+                <input id="leave-legacy" type="checkbox" />
+                Do you want to leave a legacy?
+              </label>
+              <label id="legacy-amount-wrap" class="mt-3 hidden block text-sm font-medium sm:max-w-xs">How much?
+                <input id="legacy-amount" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </label>
+              <p id="legacy-note" class="mt-2 text-sm text-ink/70"></p>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="desired-income-slider">How much after-tax annual income do you need from retirement to the end of life, in today's dollars?</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="desired-income-slider" type="range" min="0" max="300000" step="1000" value="0" class="w-full accent-pine" />
+                <input id="desired-income" inputmode="decimal" value="0" aria-label="After-tax annual income in today's dollars" class="w-32 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+              <p id="desired-income-note" class="mt-2 text-sm text-ink/70">Starts at 70% of combined income. Slide it, or type an amount.</p>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="inflation-slider">Inflation assumption</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="inflation-slider" type="range" min="0" max="8" step="0.1" class="w-full accent-pine" />
+                <input id="inflation-rate" inputmode="decimal" aria-label="Inflation percent" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+              <p id="inflation-average-note" class="mt-2 text-sm text-ink/70"></p>
+              <p id="income-translation" class="mt-2 text-sm leading-6"></p>
+              <p class="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Buying power if this income never rises</p>
+              <div id="income-erosion" class="need-chart mt-3"></div>
+              <p id="income-erosion-note" class="mt-3 text-sm leading-6"></p>
+            </div>
+            <div class="rounded-lg border border-line bg-white p-4 sm:col-span-2">
+              <p id="person-heading-accounts" class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Person 1 accounts</p>
+              <div class="mt-3 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">Current TFSA balance
+              <input id="tfsa-balance" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">TFSA room available now
+              <input id="tfsa-room" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Current RRSP balance
+              <input id="rrsp-balance" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">RRSP room available now
+              <input id="rrsp-room" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Non-registered balance
+              <input id="nonreg-balance" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium sm:col-span-2">Other assets
+              <input id="other-assets" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <span class="mt-1 block font-normal text-ink/70">Real estate or anything outside the TFSA, RRSP, and non-registered accounts. Only the growth is taxed when it is spent.</span>
+            </label>
+              </div>
+            </div>
+            <div class="person-spouse partner-only hidden rounded-lg p-4 sm:col-span-2">
+              <p id="partner-heading-accounts" class="text-xs font-semibold uppercase tracking-[0.14em] text-moss">Person 2 accounts</p>
+              <div class="mt-3 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium"><span id="partner-tfsa-balance-label">Person 2's TFSA balance</span>
+              <input id="partner-tfsa-balance" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-tfsa-room-label">Person 2's TFSA room available now</span>
+              <input id="partner-tfsa-room" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-rrsp-balance-label">Person 2's RRSP balance</span>
+              <input id="partner-rrsp-balance" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-rrsp-room-label">Person 2's RRSP room available now</span>
+              <input id="partner-rrsp-room" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="partner-nonreg-label">Person 2's non-registered balance</span>
+              <input id="partner-nonreg-balance" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium sm:col-span-2"><span id="partner-other-label">Person 2's other assets</span>
+              <input id="partner-other-assets" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <span class="mt-1 block font-normal text-ink/70">Real estate or anything outside the TFSA, RRSP, and non-registered accounts. Only the growth is taxed when it is spent.</span>
+            </label>
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="real-return-slider">Estimated rate of return while saving</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="real-return-slider" type="range" min="0" max="14" step="0.1" class="w-full accent-pine" />
+                <input id="real-return" inputmode="decimal" aria-label="Estimated rate of return while saving, percent" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="other-return-slider">Average internal rate of return for all other assets</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="other-return-slider" type="range" min="0" max="14" step="0.1" value="0" class="w-full accent-pine" />
+                <input id="other-return" inputmode="decimal" value="0" aria-label="Average internal rate of return for other assets, percent" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+              <p class="mt-2 text-sm text-ink/70">Starts at 0%. Use this when other assets include real estate. It applies before and after retirement.</p>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="retirement-return-slider">Estimated rate of return in retirement</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="retirement-return-slider" type="range" min="0" max="8" step="0.1" class="w-full accent-pine" />
+                <input id="retirement-return" inputmode="decimal" aria-label="Estimated rate of return in retirement, percent" class="w-24 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+              <p class="mt-2 text-sm text-ink/70">At retirement, contributions stop. CPP and OAS cover part of the income. The TFSA, RRSP, and non-registered accounts withdraw the rest and switch to this rate.</p>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="tfsa-contribution-slider">TFSA contribution, monthly</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="tfsa-contribution-slider" type="range" min="0" max="10000" step="50" value="0" class="w-full accent-pine" />
+                <input id="tfsa-contribution" inputmode="decimal" value="0" aria-label="TFSA contribution per month" class="w-28 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+              <p class="mt-2 text-sm text-ink/70">The most you would contribute. Deposits stay at this amount until the room is used, then they follow the room that is still available.</p>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="rrsp-contribution-slider">RRSP contribution, monthly</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="rrsp-contribution-slider" type="range" min="0" max="10000" step="50" value="0" class="w-full accent-pine" />
+                <input id="rrsp-contribution" inputmode="decimal" value="0" aria-label="RRSP contribution per month" class="w-28 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+              <p class="mt-2 text-sm text-ink/70">The most you would contribute. Combined room for both people is the limit.</p>
+              <label class="mt-3 flex gap-2 text-sm font-medium">
+                <input id="rrsp-rollover" type="checkbox" />
+                The RRSP or RRIF rolls to a spouse or other eligible beneficiary
+              </label>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium" for="nonreg-contribution-slider">Non-registered contribution, monthly</label>
+              <div class="mt-2 flex items-center gap-4">
+                <input id="nonreg-contribution-slider" type="range" min="0" max="10000" step="50" value="0" class="w-full accent-pine" />
+                <input id="nonreg-contribution" inputmode="decimal" value="0" aria-label="Non-registered contribution per month" class="w-28 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">Balances from this year to the end of the plan</p>
+              <div id="wealth-chart" class="need-chart mt-3"></div>
+              <p id="wealth-chart-note" class="mt-3 text-sm leading-6"></p>
+              <div class="mt-4">
+                <label class="block text-sm font-medium" for="early-death-age">Age if death comes at this point
+                  <span id="early-death-readout" class="nums"></span>
+                </label>
+                <input id="early-death-age" type="range" min="1" max="100" step="1" class="mt-2 w-full accent-pine" />
+                <p id="early-death-note" class="mt-2 text-sm leading-6"></p>
+              </div>
+              <div class="mt-4 overflow-x-auto">
+                <table id="portfolio-table" class="w-full text-left text-xs"></table>
+              </div>
+              <p id="allocation-note" class="mt-3 text-sm leading-6"></p>
+            </div>
+          </div>
+          <div id="tfsa-breakdown" class="mt-4 space-y-2 text-sm leading-6"></div>
+          <p id="tfsa-room-note" class="mt-3 text-sm text-ink/70"></p>
+          <p id="rrsp-room-note" class="mt-1 text-sm text-ink/70"></p>
+          <p id="future-room-note" class="mt-1 text-sm text-ink/70"></p>
+        </section>
+
+        <section class="scope-insurance rounded-xl border border-line bg-card p-5">
+          <h2 class="font-serif text-2xl">Tax and probate on death</h2>
+          <p class="mt-1 text-sm leading-6 text-ink/70">Canada has no inheritance tax. Probate is a court fee on what actually goes through the estate. A non-registered account, and other assets that move through the estate, can be taxed as a capital gain on death. An RRSP is income on the final return unless it rolls to an eligible beneficiary. Those taxes are added to the life insurance need, and the chart raises them as the accounts and the estate value grow. This is a screen, not a tax opinion.</p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">Province or territory
+              <select id="province" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></select>
+            </label>
+            <label class="block text-sm font-medium">Value expected to go through the estate
+              <input id="estate-value" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+              <span class="mt-1 block font-normal text-ink/70">Other than the non-registered balance already entered. The cost base is counted as zero.</span>
+            </label>
+          </div>
+          <label id="qc-verification-wrap" class="mt-4 hidden flex gap-2 text-sm font-medium">
+            <input id="qc-verification" type="checkbox" />
+            The will is not notarial and needs court verification
+          </label>
+          <p id="probate-result" class="mt-3 text-sm leading-6"></p>
+          <p id="death-tax-note" class="mt-3 text-sm leading-6 text-ink/80"></p>
+        </section>
+
+        <details class="rounded-xl border border-line bg-card p-5">
+          <summary class="cursor-pointer font-serif text-2xl">Assumptions you can change for this case</summary>
+          <p class="mt-2 text-sm text-ink/70">These are planning choices for this case. Inflation is the slider in the retirement section. Life insurance capital stays in today's dollars, so that slider does not shrink the insurance number.</p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium">Dependant independence age
+              <input id="independence-age" inputmode="numeric" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+            <label class="block text-sm font-medium">Figure used for life expectancy
+              <select id="client-sex" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2">
+                <option value="both">Canadian average</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </label>
+            <label class="scope-planning block text-sm font-medium">Retirement income as % of household income
+              <input id="retirement-replacement" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+          </div>
+        </details>
+
+        <section class="rounded-xl border border-line bg-card p-5">
+          <h2 class="font-serif text-2xl">Reason why</h2>
+          <p class="mt-1 text-sm text-ink/70">The record should show which needs you assessed, the amount you will actually recommend, and anything the client would not tell you.</p>
+          <fieldset class="mt-4">
+            <legend class="text-sm font-medium">Needs assessed</legend>
+            <div class="mt-2 grid gap-2 sm:grid-cols-2 text-sm">
+              <label class="flex gap-2"><input id="obj-income" type="checkbox" /> Replace income</label>
+              <label class="flex gap-2"><input id="obj-debt" type="checkbox" /> Clear debts</label>
+              <label class="flex gap-2"><input id="obj-education" type="checkbox" /> Education</label>
+              <label class="flex gap-2"><input id="obj-final" type="checkbox" /> Final expenses</label>
+              <label class="flex gap-2"><input id="obj-retirement" type="checkbox" /> Retirement income</label>
+              <label class="flex gap-2"><input id="obj-disability" type="checkbox" /> Disability income</label>
+              <label class="flex gap-2"><input id="obj-critical" type="checkbox" /> Critical illness</label>
+            </div>
+          </fieldset>
+          <div class="mt-4 grid gap-4">
+            <label class="block text-sm font-medium"><span id="recommended-life-label">Life amount you will recommend for Person 1</span>
+              <input id="recommended-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" />
+            </label>
+            <label class="partner-only hidden block text-sm font-medium"><span id="recommended-partner-life-label">Life amount you will recommend for Person 2</span>
+              <input id="recommended-partner-life" inputmode="decimal" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2" autocomplete="off" />
+            </label>
+            <label class="block text-sm font-medium">Information the client did not provide
+              <textarea id="not-disclosed" rows="2" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
+            </label>
+            <label class="block text-sm font-medium">Why this recommendation fits the need
+              <textarea id="rationale" rows="4" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
+            </label>
+            <label class="block text-sm font-medium">Needs left for later
+              <textarea id="unmet-needs" rows="2" class="mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-pine focus:ring-2"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <div class="flex flex-wrap gap-2 no-print">
+          <button id="export-client" type="button" class="rounded-md bg-pine px-3 py-2 text-sm font-medium text-white">Export client letter</button>
+          <button id="export-advisor" type="button" class="rounded-md bg-pine px-3 py-2 text-sm font-medium text-white">Export advisor record</button>
+          <button id="copy-letter" type="button" class="rounded-md border border-line bg-card px-3 py-2 text-sm font-medium">Copy letter for email</button>
+          <button id="sample-case" type="button" class="rounded-md border border-line bg-card px-3 py-2 text-sm font-medium">Load sample household</button>
+          <button id="new-case" type="button" class="rounded-md border border-line bg-card px-3 py-2 text-sm font-medium">Clear worksheet</button>
+        </div>
+      </form>
+
+      <aside id="meeting-pane" class="no-print h-max rounded-xl border border-line bg-card p-5 lg:sticky lg:top-6 lg:h-auto lg:min-h-0 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto lg:overscroll-y-contain">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-pine">For this meeting</p>
+        <div class="scope-insurance">
+          <p id="meeting-person-life-label" class="mt-4 text-sm font-medium text-pine">Person 1, life capital</p>
+          <p data-out="life" class="figure nums font-serif text-4xl">$0</p>
+          <p id="meeting-years" class="mt-1 text-sm leading-6 text-ink/70"></p>
+          <ul id="life-waterfall" class="mt-3 space-y-1 text-sm"></ul>
+          <p id="meeting-person-di-label" class="mt-4 text-sm font-medium text-pine">Person 1, disability, monthly</p>
+          <p id="meeting-di" class="figure nums font-serif text-3xl">$0</p>
+          <p id="meeting-person-ci-label" class="mt-4 text-sm font-medium text-pine">Person 1, critical illness</p>
+          <p id="meeting-ci" class="figure nums font-serif text-3xl">$0</p>
+          <div id="meeting-partner" class="person-spouse partner-only mt-6 hidden">
+            <p id="meeting-partner-life-label" class="text-sm font-medium text-pine">Person 2, life capital</p>
+            <p id="meeting-partner-life" class="figure nums font-serif text-4xl">$0</p>
+            <ul id="partner-life-waterfall" class="mt-3 space-y-1 text-sm"></ul>
+            <p id="meeting-partner-di-label" class="mt-4 text-sm font-medium text-pine">Person 2, disability, monthly</p>
+            <p id="meeting-partner-di" class="figure nums font-serif text-3xl">$0</p>
+            <p id="meeting-partner-ci-label" class="mt-4 text-sm font-medium text-pine">Person 2, critical illness</p>
+            <p id="meeting-partner-ci" class="figure nums font-serif text-3xl">$0</p>
+          </div>
+          <div id="meeting-children" class="mt-6 space-y-4"></div>
+        </div>
+        <div class="scope-planning">
+          <p data-out="savings-label" class="mt-6 text-sm font-medium text-pine">Monthly contributions</p>
+          <p data-out="savings" class="figure nums font-serif text-4xl">$0</p>
+          <p id="savings-destination" class="mt-2 text-sm font-semibold leading-6 text-ink"></p>
+          <ul id="retirement-waterfall" class="mt-3 space-y-1 text-sm"></ul>
+        </div>
+        <p id="calc-notes" class="mt-4 text-sm leading-6 text-ink/70"></p>
+      </aside>
+      </div>
+
+      <article id="file-copy" class="space-y-12"></article>
+    </main>
+
+    <footer class="mx-auto max-w-6xl space-y-3 px-4 pb-10 text-sm leading-6 text-ink/70 no-print">
+      <p>
+        Alberta's Life Insurance Council Code of Conduct requires an agent to evaluate the client's needs and keep records.
+        CLHIA's The Approach describes the practice. It is not a form the regulator has mandated. This worksheet records the
+        facts, the need, and your reason why. It does not replace advisor disclosure, a policy illustration, or the recommendation itself.
+      </p>
+      <p>
+        Disability is recorded as a monthly benefit. Critical illness is recorded as a lump sum. The worksheet does not choose a policy.
+        A Life and A&amp;S licence does not by itself authorize a securities or mutual fund recommendation.
+      </p>
+      <p>
+        Nothing is sent to a server. Nothing is written to this browser. The entries exist only while this tab is open.
+        Export the client letter and the advisor record separately. Copy the letter when it should go in an email.
+      </p>
+    </footer>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
